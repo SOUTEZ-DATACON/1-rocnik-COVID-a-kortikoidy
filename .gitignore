@@ -1,0 +1,12 @@
+DATACON_data/
+
+Kódy/_data/
+Kódy/matching_rust/target/
+Kódy/.venv/
+Kódy/__pycache__/
+Kódy/**/__pycache__/
+Kódy/.ruff_cache/
+Kódy/.mypy_cache/
+Kódy/.pytest_cache/
+*.pyc
+.DS_Store

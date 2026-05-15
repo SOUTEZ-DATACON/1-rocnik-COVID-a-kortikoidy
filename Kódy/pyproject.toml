@@ -1,0 +1,20 @@
+[project]
+name = "archa21-datacon"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "matplotlib>=3.10.8",
+    "numpy>=2.4.2",
+    "polars>=1.38.1",
+    "scipy>=1.17.0",
+]
+
+[dependency-groups]
+dev = [
+    "ipykernel>=7.2.0",
+    "pytest>=9.0.2",
+    "ruff>=0.15.1",
+    "ty>=0.0.17",
+]

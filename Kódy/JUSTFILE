@@ -1,0 +1,90 @@
+set dotenv-load := false
+
+rust_dir := "matching_rust"
+
+# Where the input CSVs (CPZP_preskladane.csv, OZP_preskladane.csv) live.
+# Default = sibling DATACON_data/ directory at the repo root. Override with `just data_dir=... <recipe>`.
+data_dir := "../DATACON_data"
+
+# Intermediate JSONs (ignored by git; regenerated on every simulate run).
+out_dir := "_data"
+
+# Final Czech-named hierarchy committed to the repo (one level up from Kódy/).
+publish_dir := "../Finální matchingová analýza"
+
+common_args := "--num-runs 100 --data-dir " + data_dir + " --out-dir " + out_dir
+
+# list available recipes
+default:
+    @just --list
+
+# build the Rust matching binary (release)
+build:
+    cargo build --release --manifest-path {{rust_dir}}/Cargo.toml
+
+# 5 offsets × 3 modes for CPZP, with --specialty-analysis
+simulate-cpzp: build
+    #!/usr/bin/env bash
+    set -e
+    for flag in "" "--inj-analysis" "--every-prescription"; do
+        for offset in 3 2 1 0 -1; do
+            echo "==== cpzp / offset=$offset ${flag:-"(non-inj)"} ===="
+            cargo run --release --manifest-path {{rust_dir}}/Cargo.toml -- \
+                --company cpzp {{common_args}} --specialty-analysis \
+                --year-offset "$offset" $flag
+        done
+    done
+
+# 5 offsets × 3 modes for OZP (no specialty data in OZP CSV)
+simulate-ozp: build
+    #!/usr/bin/env bash
+    set -e
+    for flag in "" "--inj-analysis" "--every-prescription"; do
+        for offset in 3 2 1 0 -1; do
+            echo "==== ozp / offset=$offset ${flag:-"(non-inj)"} ===="
+            cargo run --release --manifest-path {{rust_dir}}/Cargo.toml -- \
+                --company ozp {{common_args}} \
+                --year-offset "$offset" $flag
+        done
+    done
+
+# 5 offsets × 3 modes for both_companies (no specialty: missing in OZP CSV)
+simulate-both: build
+    #!/usr/bin/env bash
+    set -e
+    for flag in "" "--inj-analysis" "--every-prescription"; do
+        for offset in 3 2 1 0 -1; do
+            echo "==== both_companies / offset=$offset ${flag:-"(non-inj)"} ===="
+            cargo run --release --manifest-path {{rust_dir}}/Cargo.toml -- \
+                --company both_companies {{common_args}} \
+                --year-offset "$offset" $flag
+        done
+    done
+
+# 5 offsets × 3 companies, --immuno-as-corticoid-500pe (only non-inj per existing convention)
+simulate-immuno-all: build
+    #!/usr/bin/env bash
+    set -e
+    for company in cpzp ozp both_companies; do
+        spec=""
+        if [ "$company" = "cpzp" ]; then spec="--specialty-analysis"; fi
+        for offset in 3 2 1 0 -1; do
+            echo "==== immuno / $company / offset=$offset ===="
+            cargo run --release --manifest-path {{rust_dir}}/Cargo.toml -- \
+                --company "$company" {{common_args}} $spec \
+                --immuno-as-corticoid-500pe --year-offset "$offset"
+        done
+    done
+
+# run all simulations
+simulate-all: simulate-cpzp simulate-ozp simulate-both simulate-immuno-all
+    @echo "All simulations done. JSONs in {{out_dir}}/"
+
+# generate all forest plots directly into the Czech hierarchy under {{publish_dir}}/
+plots-all:
+    python forest_plot.py --companies cpzp ozp both_companies --out-root {{out_dir}} --publish-dir "{{publish_dir}}"
+    python specialty_forest_plot.py --companies cpzp --out-root {{out_dir}} --publish-dir "{{publish_dir}}"
+
+# full pipeline: simulate everything → publish PNGs into the Czech hierarchy
+all: simulate-all plots-all
+    @echo "Pipeline complete. See {{publish_dir}}/"

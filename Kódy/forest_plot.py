@@ -226,6 +226,9 @@ def make_raw_effects_plot(bucket: str, ax: plt.Axes, *, base: Path, effect_basel
             y = group_base + p_idx
             marker = VAX_MARKERS[p_idx]
 
+            rightmost = float("-inf")
+            has_point = False
+
             vax_ci = entry.get("očko 95% CI")
             if vax_val is not None:
                 if vax_ci is not None:
@@ -241,6 +244,8 @@ def make_raw_effects_plot(bucket: str, ax: plt.Axes, *, base: Path, effect_basel
                         linewidth=1,
                         markeredgewidth=1.2,
                     )
+                    rightmost = max(rightmost, ci_hi)
+                    has_point = True
                 else:
                     ax.plot(
                         vax_val,
@@ -251,6 +256,8 @@ def make_raw_effects_plot(bucket: str, ax: plt.Axes, *, base: Path, effect_basel
                         linestyle="None",
                         markeredgewidth=1.2,
                     )
+                    rightmost = max(rightmost, vax_val)
+                    has_point = True
             novax_ci = entry.get("neočko 95% CI")
             if novax_val is not None:
                 if novax_ci is not None:
@@ -267,6 +274,8 @@ def make_raw_effects_plot(bucket: str, ax: plt.Axes, *, base: Path, effect_basel
                         markeredgewidth=1.2,
                         fillstyle="none",
                     )
+                    rightmost = max(rightmost, ci_hi)
+                    has_point = True
                 else:
                     ax.plot(
                         novax_val,
@@ -277,6 +286,23 @@ def make_raw_effects_plot(bucket: str, ax: plt.Axes, *, base: Path, effect_basel
                         linestyle="None",
                         markeredgewidth=1.2,
                         fillstyle="none",
+                    )
+                    rightmost = max(rightmost, novax_val)
+                    has_point = True
+
+            if has_point:
+                vax_n = entry.get("počet očko", 0)
+                pe_after = entry.get("počet s PE po", 0)
+                if vax_n:
+                    label = f"n={vax_n:,} ({pe_after:,} s PE po)".replace(",", "\u2009")
+                    ax.annotate(
+                        label,
+                        (rightmost, y),
+                        textcoords="offset points",
+                        xytext=(5, 0),
+                        fontsize=5.5,
+                        color="#555555",
+                        va="center",
                     )
 
     yticks = []
